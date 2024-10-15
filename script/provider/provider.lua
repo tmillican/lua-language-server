@@ -28,7 +28,7 @@ local m = {}
 m.attributes = {}
 
 ---@async
-function m.updateConfig(uri)
+function m.updateConfig(uri, pushedConfig)
     config.addNullSymbol(json.null)
     local specified = cfgLoader.loadLocalConfig(uri, CONFIGPATH)
     if specified then
@@ -57,6 +57,12 @@ function m.updateConfig(uri)
         end
 
         config.update(folder, clientConfig, rc)
+    end
+    
+    if pushedConfig then
+        log.info('Load config pushed by client', 'fallback')
+        log.info(inspect(pushedConfig))
+        config.update(scope.fallback, pushedConfig)
     end
 
     if client.getAbility('workspace.configuration') then
@@ -176,11 +182,16 @@ m.register 'shutdown' {
 }
 
 m.register 'workspace/didChangeConfiguration' {
-    function () ---@async
+    function (params) ---@async
+        log.debug('workspace/didChangeConfiguration', inspect(params))
         if CONFIGPATH then
             return
         end
-        m.updateConfig()
+        local pushedConfig
+        if type(params) == 'table' and type(params.settings) == 'table' then
+            pushedConfig = params.settings
+        end
+        m.updateConfig(nil, pushedConfig)
     end
 }
 
